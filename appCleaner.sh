@@ -48,6 +48,9 @@ case $opcion in
 
     echo ">>> Limpiando logs antiguos..."
     sudo journalctl --vacuum-time=7d
+    
+    echo ">>> Limpiando cache de npm..."
+    npm cache clean --force
 
     echo ">>> Limpieza básica completada."
     read -p "Presiona Enter para volver al menú..."
@@ -85,6 +88,9 @@ case $opcion in
 
     echo ">>> Vaciando papelera..."
     rm -rf ~/.local/share/Trash/*
+    
+    echo ">>> Limpiando cache de npm..."
+    npm cache clean --force
 
     echo ">>> Limpiando logs..."
     sudo journalctl --vacuum-time=3d
