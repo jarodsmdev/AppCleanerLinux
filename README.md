@@ -4,8 +4,8 @@
 
 **Menú interactivo en Bash para liberar espacio en disco en Fedora Linux.**
 
-[![Shell](https://img.shields.io/badge/Shell-Bash-4.1%2B-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
-[![OS](https://img.shields.io/badge/OS-Fedora-51-3C6EB4?style=for-the-badge&logo=fedora&logoColor=white)](https://fedoraproject.org/)
+[![Shell](https://img.shields.io/badge/Shell-Bash%204.1%2B-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![OS](https://img.shields.io/badge/OS-Fedora%2044-3C6EB4?style=for-the-badge&logo=fedora&logoColor=white)](https://fedoraproject.org/)
 [![Licencia](https://img.shields.io/badge/Licencia-MIT-00ADD8?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](https://opensource.org/license/mit)
 [![Plataforma](https://img.shields.io/badge/Plataforma-Linux%20%7C%20Fedora-3C6EB4?style=for-the-badge&logo=linux&logoColor=white)](https://kernel.org/)
 [![Uso](https://img.shields.io/badge/Uso-Interfaz%20CLI-555555?style=for-the-badge)](#)
@@ -32,11 +32,14 @@ Diseñado y probado específicamente sobre **Fedora**, usando su gestor de paque
 
 | | Función | Detalle |
 |:-:|:--|:--|
-| 🧹 | **Limpieza básica** | Segura y reversible en su mayoría |
-| 💣 | **Limpieza completa** | Modo agresivo, borra todo lo regenerable |
-| 📱 | **Limpieza Android Studio** | Caché de Gradle, logs y carpetas `build/` |
+| 🧹 | **Limpieza básica** | Cachés y logs seguros de regenerar |
+| 💣 | **Limpieza completa** | Modo agresivo, sin tocar Docker volúmenes ni lockfiles |
+| 📱 | **Limpieza Android Studio** | Caché de Gradle, logs, `build/` reales y snapshots de AVD |
 | 📊 | **Analizador de disco** | Interfaz visual con `ncdu` |
 | 🗑️ | **Limpieza de node_modules** | Borrado interactivo con `npkill` |
+| 🛠️ | **Cachés de desarrollo** | npm, pnpm, yarn, bun, pip, uv, Go, Rust y Maven |
+| 📦 | **Contenedores y paquetes** | Docker, Podman, Flatpak y Snap |
+| 💻 | **Cachés de IDEs** | Solo cachés/logs regenerables de VS Code y JetBrains |
 
 ---
 
@@ -69,21 +72,26 @@ Al ejecutarlo verás el menú principal:
 
 1) Limpieza básica (segura)
 2) Limpieza completa (AGRESIVA)
-3) Limpieza Android Studio
+3) Limpieza Android Studio / Gradle
 4) Analizar disco con ncdu
 5) Limpiar node_modules (npkill)
-6) Salir
+6) Cachés de desarrollo (npm, pip, uv, Go, Rust...)
+7) Contenedores y paquetes (Docker, Podman, Flatpak, Snap)
+8) Cachés de IDEs (VS Code, JetBrains)
+9) Salir
 ```
 
 ### 1 · Limpieza básica (segura)
 
 Libera espacio sin tocar nada que no se regenere solo:
 
-- Elimina paquetes huérfanos (`dnf autoremove`)
-- Vacía la caché de `dnf` (`dnf clean all`)
-- Limpia `~/.cache` y las miniaturas del sistema
-- Reduce los logs del journal a los últimos **7 días**
-- Limpia la caché de `npm`
+- Elimina paquetes huérfanos (`dnf autoremove`) y limpia la caché de `dnf`
+- Limpia cachés de PackageKit, dnf5 daemon y catálogo de software
+- Reduce el journal a los últimos **7 días** y borra logs rotados de +14 días
+- Borra coredumps del sistema
+- Limpia cachés seguras (`thumbnails`, `mesa_shader_cache`, `gnome-software`, `fontconfig`, `tracker3`)
+- Borra el resto de cachés de usuario con más de **14 días**
+- Limpia cachés de `npm`, `pip`, `uv`, `pre-commit` y `poetry`
 
 ### 2 · Limpieza completa (agresiva)
 
@@ -91,20 +99,21 @@ Todo lo anterior, y además:
 
 - Vacía la **papelera** del usuario
 - Reduce los logs a **3 días**
-- Borra `/tmp` y `/var/tmp`
-- Purga Docker: imágenes, contenedores y **volúmenes** no usados
-- Elimina Flatpaks sin uso (`flatpak uninstall --unused`)
-- Borra todas las carpetas `.terraform` y `.terraform.lock.hcl`
-- Borra todas las carpetas `node_modules` del home
-- Borra cachés de Python (`__pycache__`, `*.pyc`)
+- Borra de `/tmp` y `/var/tmp` solo lo que tenga **más de 3 días**, excluyendo sockets y directorios privados del sistema
+- Purga Docker y Podman: contenedores, imágenes y build cache, **sin volúmenes**
+- Elimina Flatpaks sin uso y revisiones antiguas/deshabilitadas de Snap
+- Borra carpetas `.terraform`, pero **conserva `.terraform.lock.hcl`**
+- Borra cachés de Python (`__pycache__`, `*.pyc`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`)
+- Borra `node_modules`, excluyendo `~/.config`, `~/.local`, `~/.npm`, `~/.bun`, `~/.vscode*` y `~/snap`
 
-> ⚠️ **Riesgos:** los `node_modules` y carpetas `build/` desaparecerán de todos tus proyectos (habrá que reinstalar dependencias) y se eliminarán los volúmenes de Docker no usados. Siempre se pide confirmación explícita (`y`) antes de ejecutar.
+> ⚠️ **Riesgos:** los `node_modules` desaparecerán de tus proyectos (habrá que reinstalar dependencias). Los volúmenes de Docker/Podman **no se tocan** en esta opción. Siempre se pide confirmación explícita (`y`) antes de ejecutar.
 
-### 3 · Limpieza Android Studio
+### 3 · Limpieza Android Studio / Gradle
 
 - Caché de Gradle (`~/.gradle/caches`, `daemon`, `native`)
 - Logs y caché de Android Studio
-- Carpetas `build/` de todos tus proyectos
+- Carpetas `build/` que contengan artefactos reales (`intermediates`, `outputs`, `generated` o `kotlin`), evitando directorios de código llamados `build`
+- Caché de `~/.android` y snapshots de emuladores AVD (se pierde el arranque rápido)
 
 ### 4 · Analizar disco con `ncdu`
 
@@ -122,6 +131,37 @@ Ejecuta [npkill](https://github.com/rtfeldman/node-process-list) de forma intera
 sudo dnf install nodejs
 ```
 
+### 6 · Cachés de desarrollo
+
+Limpia solo cachés regenerables de las herramientas que tengas instaladas:
+
+- `npm`, `pnpm`, `yarn` y `bun`
+- `pip`, `uv`, `pre-commit` y `poetry`
+- `go clean -cache` (y opcionalmente `go clean -modcache`)
+- Caché de Cargo (`~/.cargo/registry/cache`, `src` y `git/checkouts`)
+- Opcionalmente `~/.m2/repository` (Maven) y `~/.gradle/caches`
+
+Las opciones caras de re-descargar se preguntan por separado.
+
+### 7 · Contenedores y paquetes
+
+- Docker: `system prune -a` y `builder prune -a`, sin volúmenes
+- Podman: `system prune -a`, sin volúmenes
+- Flatpak: runtimes y apps sin uso
+- Snap: reduce las revisiones retenidas y elimina las deshabilitadas
+
+Los volúmenes de Docker/Podman se preguntan aparte y **por defecto no se borran**, porque pueden contener bases de datos o datos persistentes.
+
+### 8 · Cachés de IDEs
+
+Limpia únicamente archivos que el IDE regenera solo:
+
+- VS Code: `Cache`, `Code Cache`, `GPUCache`, `CachedData`, `CachedExtensionVSIXs`, `Dawn*Cache`, `Crashpad` y `logs`
+- VS Code: `Service Worker` y `workspaceStorage` con más de 30 días
+- JetBrains: cachés de `~/.cache/JetBrains` y logs de Toolbox/IDEs
+
+No borra settings, extensiones instaladas, backups de archivos sin guardar ni datos de plugins. Si detecta un IDE abierto, avisa y pide confirmación antes de continuar.
+
 ---
 
 ## 🧰 Requisitos
@@ -130,8 +170,8 @@ sudo dnf install nodejs
 |:--|:--|
 | Sistema | **Fedora Linux** (usa `dnf`, `journalctl` y rutas propias de Fedora) |
 | Shell | Bash 4.1 o superior |
-| Privilegios | `sudo` (se solicitará al borrar paquetes, logs y `/tmp`) |
-| Herramientas opcionales | `npm` / `npx`, `docker`, `flatpak`, `ncdu` |
+| Privilegios | `sudo` (paquetes, journal, `/var/tmp`, coredumps y Snap) |
+| Herramientas opcionales | `npm` / `npx`, `pnpm`, `yarn`, `bun`, `pip`, `uv`, `go`, `cargo`, `docker`, `podman`, `flatpak`, `snap`, `ncdu` |
 
 **Dependencias externas del script: ninguna.** Las herramientas opcionales se detectan con `command -v` y se omiten si no están disponibles.
 
@@ -146,6 +186,15 @@ sudo dnf install nodejs
 # Liberar espacio tras un build de Android
 ./appCleaner.sh   # → opción 3 → y
 
+# Limpiar cachés de npm, pip, uv, Go o Rust
+./appCleaner.sh   # → opción 6 → y
+
+# Limpiar Docker/Podman/Flatpak/Snap
+./appCleaner.sh   # → opción 7 → y
+
+# Limpiar solo cachés y logs de VS Code/JetBrains
+./appCleaner.sh   # → opción 8 → y
+
 # Encontrar qué se está comiendo el disco
 ./appCleaner.sh   # → opción 4
 ```
@@ -153,8 +202,9 @@ sudo dnf install nodejs
 Para consultar qué se va a borrar **antes** de ejecutar:
 
 ```bash
-du -sh ~/.cache /var/tmp 2>/dev/null
+du -sh ~/.cache ~/.m2/repository ~/.gradle/caches /var/tmp 2>/dev/null
 docker system df
+podman system df
 journalctl --disk-usage
 ```
 
@@ -165,9 +215,12 @@ journalctl --disk-usage
 - El script **solo borra datos regenerables**: cachés, logs, artefactos de build y paquetes huérfanos.
 - Usa `-y` en `dnf autoremove`, lo que elimina dependencias huérfanas de forma **no interactiva**: revisa la lista antes de confirmar.
 - Las opciones destructivas requieren confirmación manual (`y`) — no hay ejecución automática.
-- Docker se purga con `-a`, que elimina imágenes no usadas por contenedores activos, y `docker volume prune` **borra volúmenes sin usar**. Si usas volúmenes para datos persistentes, considera la opción 1.
+- `/tmp` y `/var/tmp` no se vacían completos: solo se borra lo que tenga más de 3 días, excluyendo sockets y directorios privados del sistema.
+- Docker/Podman **no borran volúmenes por defecto**. La opción 7 pregunta aparte antes de tocarlos.
+- `.terraform.lock.hcl` **no se elimina**; solo se borra la carpeta regenerable `.terraform`.
+- Las carpetas `build/` solo se eliminan si contienen artefactos de Gradle, para no borrar código fuente que casualmente se llame `build`.
+- La limpieza de IDEs solo toca cachés, logs y `workspaceStorage` viejo; conserva settings, extensiones y backups.
 - Haz una copia de seguridad o una instantánea del sistema antes de la opción 2.
-- Algunas rutas (`~/.local/share/Trash`, `~/.cache/Google`) son específicas de GNOME y del tema de escritorio.
 
 ---
 
